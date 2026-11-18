@@ -7,127 +7,399 @@
 <style>
 * { box-sizing: border-box; }
 body { margin: 0; font: 16px/1.5 system-ui, sans-serif; background: #eff3ef; color: #192721; }
-header { background: #18392d; color: white; padding: 32px max(24px, calc((100vw - 1040px)/2)); }
-h1, h2, p { margin: 0 0 12px; }
-header p { color: #c8ded3; margin: 0; }
-main { margin: 28px auto; padding: 0 20px; max-width: 1080px; display: grid; grid-template-columns: 1fr 1.5fr; gap: 20px; align-items: start; }
-section { padding: 24px; background: white; border: 1px solid #d5dfd8; border-radius: 14px; }
-label { display: block; margin: 14px 0; font-weight: 600; }
-select, textarea, button { font: inherit; border-radius: 8px; }
-select, textarea { display: block; margin-top: 6px; padding: 9px; width: 100%; border: 1px solid #a0b4a7; }
-textarea { resize: vertical; }
-button { background: #225641; color: white; border: 0; padding: 9px 14px; cursor: pointer; }
+header { background: #18392d; color: white; padding: 28px max(20px, calc((100vw - 1040px)/2)); }
+header h1 { margin: 0; }
+main { margin: 20px auto; padding: 0 20px; max-width: 1080px; }
+section { padding: 20px; background: white; border: 1px solid #d5dfd8; border-radius: 14px; margin-bottom: 16px; }
+[hidden] { display: none !important; }
+.desk-bar, .view-header, .record-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.desk-bar { margin-bottom: 16px; }
+nav { display: flex; gap: 4px; flex-wrap: wrap; }
+nav button, #signout { background: transparent; color: #225641; margin: 0; }
+nav button[aria-pressed="true"] { background: #225641; color: white; }
+.identity { display: flex; align-items: center; gap: 8px; color: #405a4b; }
+.identity p, .view-header h2, .record-header h3 { margin: 0; }
+.filters { display: flex; gap: 12px; flex-wrap: wrap; margin: 12px 0; }
+.filters label { min-width: min(180px, 100%); }
+.editor { margin: 12px 0; padding: 12px 16px; border: 1px solid #d5dfd8; border-radius: 8px; }
+.editor > summary { font-weight: 650; color: #225641; margin: 0; }
+.editor[open] > summary { margin-bottom: 12px; }
+.editor form, #login { max-width: 580px; }
+.record-header { justify-content: flex-start; margin-bottom: 6px; }
+.status { padding: 2px 8px; border-radius: 20px; background: #e2efe7; color: #225641; }
+article > details { margin-top: 8px; }
+article > small { display: block; margin-bottom: 6px; }
+#sign-in { max-width: 440px; margin: 48px auto 16px; }
+#demo-login { margin-bottom: 14px; }
+h2, h3, p { margin: 0 0 10px; }
+label { display: block; margin: 8px 0; font-weight: 600; }
+input, select, textarea, button { font: inherit; border-radius: 8px; }
+input, select, textarea { display: block; margin-top: 4px; padding: 7px; width: 100%; border: 1px solid #a0b4a7; }
+button { background: #225641; color: white; border: 0; padding: 8px 12px; margin: 4px 4px 4px 0; cursor: pointer; }
 button:disabled { opacity: .65; cursor: wait; }
 :focus-visible { outline: 3px solid #bf7600; outline-offset: 2px; }
-article { border-top: 1px solid #d5dfd8; padding: 14px 0; overflow-wrap: anywhere; }
+article { border-top: 1px solid #d5dfd8; padding: 12px 0; overflow-wrap: anywhere; }
 small { color: #405a4b; }
-#message { min-height: 1.5em; margin-top: 12px; }
-@media (max-width: 720px) { main { grid-template-columns: 1fr; } }
+summary { cursor: pointer; margin-bottom: 8px; }
+#message:empty { display: none; }
+@media (max-width: 520px) { header { padding: 20px; } header h1 { font-size: 24px; } section { padding: 16px; } }
 </style>
 </head>
-<body>
-<header>
-  <h1>Field Maintenance Desk</h1>
-  <p>Log equipment issues and track follow-up. Demo assets only.</p>
-</header>
+<body data-demo="false">
+<header><h1>Field Maintenance Desk</h1></header>
 <main>
-  <section>
-    <h2>Log an issue</h2>
-    <form id="issue">
-      <label>Asset
-        <select name="asset" required>
-          <option value="">Select an asset</option>
-          <option>DRILL-01</option><option>PUMP-02</option><option>GEN-03</option>
-        </select>
-      </label>
-      <label>Category
-        <select name="category" required>
-          <option value="">Select a category</option>
-          <option>Mechanical</option><option>Electrical</option><option>Hydraulic</option><option>Other</option>
-        </select>
-      </label>
-      <label>What did you observe?
-        <textarea name="description" rows="4" required minlength="10" maxlength="500"></textarea>
-      </label>
-      <button type="submit">Log issue</button>
-    </form>
-    <p id="message" role="status"></p>
+  <section id="sign-in">
+    <h2>Sign in</h2>
+    <div id="demo-login" hidden>
+      <button id="demo-button" type="button">Continue as Demo Supervisor</button>
+    </div>
+    <details id="token-login" open>
+      <summary>Use an access token</summary>
+      <form id="login">
+        <label>Access token<input type="password" name="token" required autocomplete="off"></label>
+        <button>Sign in with token</button>
+      </form>
+    </details>
   </section>
-  <section>
-    <h2>Maintenance queue</h2>
-    <p id="count"></p>
-    <div id="queue"></div>
-  </section>
+  <p id="message" role="status"></p>
+  <div id="desk" hidden>
+    <div class="desk-bar">
+      <nav aria-label="Maintenance views">
+        <button type="button" data-view="tickets" aria-controls="tickets-view" aria-pressed="true">Tickets</button>
+        <button type="button" data-view="assets" aria-controls="assets-view" aria-pressed="false">Assets</button>
+        <button type="button" data-view="sites" aria-controls="sites-view" aria-pressed="false">Sites</button>
+      </nav>
+      <div class="identity">
+        <p id="identity"></p>
+        <button type="button" id="signout">Sign out</button>
+      </div>
+    </div>
+
+    <section id="tickets-view" aria-labelledby="tickets-heading">
+      <div class="view-header"><h2 id="tickets-heading">Tickets</h2></div>
+      <details class="editor" id="ticket-editor">
+        <summary>New ticket</summary>
+        <form id="ticket-form">
+          <label>Asset<select name="asset_id" required></select></label>
+          <label>Category
+            <select name="category" required>
+              <option value="">Select a category</option>
+              <option>Mechanical</option><option>Electrical</option><option>Hydraulic</option><option>Other</option>
+            </select>
+          </label>
+          <label>Description<textarea name="description" rows="3" required minlength="10" maxlength="500"></textarea></label>
+          <button>Log ticket</button>
+        </form>
+      </details>
+      <div class="filters">
+        <label>Site<select id="site-filter"></select></label>
+        <label>Status<select id="status-filter"></select></label>
+      </div>
+      <div id="tickets"></div>
+    </section>
+
+    <section id="assets-view" aria-labelledby="assets-heading" hidden>
+      <div class="view-header"><h2 id="assets-heading">Assets</h2></div>
+      <details class="editor" id="asset-editor">
+        <summary id="asset-editor-label">Add asset</summary>
+        <form id="asset-form">
+          <label>Site<select name="site_id" required></select></label>
+          <label>Asset code<input name="code" required maxlength="32"></label>
+          <label>Name<input name="name" required maxlength="100"></label>
+          <label>Serial number<input name="serial_number" maxlength="100"></label>
+          <label>Location<input name="location" maxlength="100"></label>
+          <label>Last service<input type="date" name="last_service_date"></label>
+          <label>Next service<input type="date" name="next_service_date"></label>
+          <button>Save asset</button>
+          <button type="button" id="cancel-edit" hidden>Cancel</button>
+        </form>
+      </details>
+      <div class="filters"><label>Site<select id="asset-site-filter"></select></label></div>
+      <div id="assets"></div>
+    </section>
+
+    <section id="sites-view" aria-labelledby="sites-heading" hidden>
+      <div class="view-header"><h2 id="sites-heading">Sites</h2></div>
+      <details class="editor" id="site-editor">
+        <summary>Add site</summary>
+        <form id="site-form">
+          <label>Site code<input name="code" required maxlength="32"></label>
+          <label>Name<input name="name" required maxlength="100"></label>
+          <button>Save site</button>
+        </form>
+      </details>
+      <div id="sites"></div>
+    </section>
+  </div>
 </main>
 <script>
-const form = document.querySelector("#issue");
-const message = document.querySelector("#message");
-const queue = document.querySelector("#queue");
+const byId = id => document.getElementById(id);
+const login = byId("login");
+const assetForm = byId("asset-form");
+const ticketForm = byId("ticket-form");
+const siteFilter = byId("site-filter");
+const statusFilter = byId("status-filter");
+const assetSiteFilter = byId("asset-site-filter");
+const viewButtons = [...document.querySelectorAll("nav [data-view]")];
 
-async function request(path, options) {
-  const response = await fetch(path, options);
-  const data = await response.json();
-  if (!response.ok) throw new Error(data.error);
-  return data;
+function showView(view) {
+  for (const button of viewButtons) {
+    const active = button.dataset.view === view;
+    button.setAttribute("aria-pressed", String(active));
+    byId(button.getAttribute("aria-controls")).hidden = !active;
+  }
+  byId("message").textContent = "";
 }
 
-function addText(parent, tag, value) {
+for (const button of viewButtons) {
+  button.addEventListener("click", () => showView(button.dataset.view));
+}
+let token = "";
+let session;
+let editing = null;
+let version = 0;
+
+function add(parent, tag, text = "") {
   const element = document.createElement(tag);
-  element.textContent = value;
+  element.textContent = text;
   parent.append(element);
   return element;
 }
 
-async function refresh() {
-  const tickets = await request("/api/tickets");
-  const open = tickets.filter(ticket => ticket.status === "Open").length;
-  document.querySelector("#count").textContent =
-    tickets.length ? `${open} open · ${tickets.length - open} resolved` : "No issues logged yet.";
-  queue.replaceChildren();
-  for (const ticket of tickets) {
-    const card = document.createElement("article");
-    addText(card, "small", `#${ticket.id} · ${ticket.asset} · ${ticket.category} · ${ticket.status}`);
-    addText(card, "p", ticket.description);
-    if (ticket.status === "Open") {
-      const button = addText(card, "button", "Mark resolved");
-      button.setAttribute("aria-label", `Mark ticket ${ticket.id} resolved`);
-      button.addEventListener("click", async () => {
-        button.disabled = true;
-        try {
-          await request(`/api/tickets/${ticket.id}`, {method: "PATCH"});
-          message.textContent = `Ticket #${ticket.id} resolved.`;
-          await refresh();
-        } catch (error) {
-          button.disabled = false;
-          message.textContent = error.message;
-        }
-      });
-    }
-    queue.append(card);
-  }
+async function request(path, method = "GET", data) {
+  const headers = token ? {Authorization: "Bearer " + token} : {};
+  if (data !== undefined) headers["Content-Type"] = "application/json";
+  const response = await fetch(path, {method, headers, body: JSON.stringify(data)});
+  const result = await response.json();
+  if (!response.ok) throw new Error(result.error);
+  return result;
 }
 
-form.addEventListener("submit", async event => {
-  event.preventDefault();
-  const button = form.querySelector("button");
+function options(select, choices, placeholder) {
+  const selected = select.value;
+  select.replaceChildren(new Option(placeholder, ""), ...choices.map(
+    ([id, label]) => new Option(label, id)
+  ));
+  if ([...select.options].some(option => option.value === selected)) select.value = selected;
+}
+
+function action(parent, label, callback) {
+  const button = add(parent, "button", label);
+  button.type = "button";
+  button.addEventListener("click", () => run(button, callback));
+}
+
+async function run(button, callback) {
   button.disabled = true;
   try {
-    const ticket = await request("/api/tickets", {
-      method: "POST",
-      headers: {"Content-Type": "application/json"},
-      body: JSON.stringify(Object.fromEntries(new FormData(form)))
-    });
-    form.reset();
-    message.textContent = `Ticket #${ticket.id} logged.`;
-    await refresh();
+    byId("message").textContent = await callback() || "";
   } catch (error) {
-    message.textContent = error.message;
+    byId("message").textContent = error.message;
   } finally {
     button.disabled = false;
   }
-});
+}
 
-refresh().catch(error => { message.textContent = error.message; });
+function bind(form, save) {
+  form.addEventListener("submit", event => {
+    event.preventDefault();
+    run(form.querySelector("button"), () => save(Object.fromEntries(new FormData(form))));
+  });
+}
+
+function stopEditing() {
+  editing = null;
+  assetForm.reset();
+  byId("asset-editor-label").textContent = "Add asset";
+  byId("asset-editor").open = false;
+  byId("cancel-edit").hidden = true;
+}
+
+function showHistory(parent, events) {
+  const details = add(parent, "details");
+  add(details, "summary", "Status history");
+  const list = add(details, "ol");
+  for (const event of events) {
+    const change = event.previous_status ? event.previous_status + " → " + event.status : event.status;
+    const who = event.actor || "Actor unavailable";
+    const when = event.changed_at ? new Date(event.changed_at).toLocaleString() : "Time unavailable";
+    add(list, "li", change + " · " + who + " · " + when
+      + (event.assigned_to ? " · Assigned to " + event.assigned_to : ""));
+  }
+}
+
+function renderAssets(assets, sites) {
+  const list = byId("assets");
+  list.replaceChildren();
+  if (!assets.length) add(list, "p", "No assets registered.");
+  for (const asset of assets) {
+    const card = add(list, "article");
+    add(card, "h3", asset.code + " · " + asset.name);
+    add(card, "p", sites.get(asset.site_id) + (asset.location ? " · " + asset.location : ""));
+    add(card, "p", "Serial " + (asset.serial_number || "—") + " · Last service "
+      + (asset.last_service_date || "—") + " · Next service " + (asset.next_service_date || "—"));
+    action(card, "Edit asset", () => {
+      editing = asset.id;
+      for (const field of Object.keys(Object.fromEntries(new FormData(assetForm)))) {
+        assetForm.elements[field].value = asset[field] ?? "";
+      }
+      byId("asset-editor-label").textContent = "Edit " + asset.code;
+      byId("asset-editor").open = true;
+      byId("cancel-edit").hidden = false;
+      assetForm.elements.name.focus();
+    });
+    const details = add(card, "details");
+    add(details, "summary", "Repair history");
+    const content = add(details, "div");
+    details.addEventListener("toggle", async () => {
+      if (!details.open) return;
+      content.textContent = "Loading…";
+      try {
+        const repairs = await request("/api/assets/" + encodeURIComponent(asset.id) + "/repairs");
+        content.replaceChildren();
+        if (!repairs.tickets.length && !repairs.legacy_work_orders.length) add(content, "p", "No repair history.");
+        for (const ticket of repairs.tickets) {
+          add(content, "p", ticket.category + " · " + ticket.status + " · " + ticket.description);
+          showHistory(content, ticket.history);
+        }
+        for (const order of repairs.legacy_work_orders) {
+          add(content, "p", "Imported work order #" + order.legacy_id + " · " + order.status);
+          if (order.history.length) showHistory(content, order.history);
+        }
+      } catch (error) {
+        content.textContent = error.message;
+      }
+    });
+  }
+}
+
+function renderTickets(tickets, labels) {
+  const queue = byId("tickets");
+  queue.replaceChildren();
+  if (!tickets.length) add(queue, "p", "No matching tickets.");
+  for (const ticket of tickets) {
+    const card = add(queue, "article");
+    const heading = add(card, "div");
+    heading.className = "record-header";
+    add(heading, "h3", labels.get(ticket.asset_id) || ticket.asset_id);
+    add(heading, "small", ticket.status).className = "status";
+    add(card, "small", ticket.category);
+    add(card, "p", ticket.description);
+    if (ticket.assigned_to) add(card, "p", "Assigned to " + ticket.assigned_to);
+    let assignee;
+    if (ticket.next_status === "Assigned") {
+      const label = add(card, "label", "Assign to");
+      assignee = add(label, "select");
+      options(assignee, session.users.map(name => [name, name]), "Choose a person");
+    }
+    if (ticket.next_status) {
+      action(card, "Move to " + ticket.next_status, async () => {
+        await request("/api/tickets/" + encodeURIComponent(ticket.id) + "/status", "PATCH", {
+          status: ticket.next_status, assigned_to: assignee?.value
+        });
+        await refresh();
+        return "Ticket moved to " + ticket.next_status + ".";
+      });
+    }
+    showHistory(card, ticket.history);
+  }
+}
+
+function renderSites(sites, assets) {
+  const list = byId("sites");
+  list.replaceChildren();
+  if (!sites.length) add(list, "p", "No sites registered.");
+  const counts = new Map();
+  for (const asset of assets) counts.set(asset.site_id, (counts.get(asset.site_id) || 0) + 1);
+  for (const site of sites) {
+    const card = add(list, "article");
+    const count = counts.get(site.id) || 0;
+    add(card, "h3", site.name);
+    add(card, "p", site.id + " · " + count + (count === 1 ? " asset" : " assets"));
+    action(card, "View assets", async () => {
+      assetSiteFilter.value = site.id;
+      showView("assets");
+      await refresh();
+      assetSiteFilter.focus();
+    });
+  }
+}
+
+async function refresh() {
+  const current = ++version;
+  const query = new URLSearchParams();
+  if (siteFilter.value) query.set("site_id", siteFilter.value);
+  if (statusFilter.value) query.set("status", statusFilter.value);
+  const [sites, assets, tickets] = await Promise.all([
+    request("/api/sites"), request("/api/assets"), request("/api/tickets?" + query)
+  ]);
+  if (current !== version) return;
+  const siteNames = new Map(sites.map(site => [site.id, site.name]));
+  const labels = new Map(assets.map(asset =>
+    [asset.id, siteNames.get(asset.site_id) + " · " + asset.code + " · " + asset.name]));
+  options(assetForm.elements.site_id, [...siteNames], "Select a site");
+  options(siteFilter, [...siteNames], "All sites");
+  options(assetSiteFilter, [...siteNames], "All sites");
+  options(ticketForm.elements.asset_id, [...labels], "Select an asset");
+  renderAssets(assets.filter(asset => !assetSiteFilter.value || asset.site_id === assetSiteFilter.value), siteNames);
+  renderSites(sites, assets);
+  renderTickets(tickets, labels);
+}
+
+async function signIn(accessToken) {
+  token = accessToken;
+  try {
+    session = await request("/api/session");
+    options(statusFilter, session.statuses.map(status => [status, status]), "All statuses");
+    await refresh();
+  } catch (error) {
+    token = "";
+    throw error;
+  }
+  login.reset();
+  byId("sign-in").hidden = true;
+  byId("identity").textContent = "Signed in as " + session.actor;
+  byId("desk").hidden = false;
+}
+
+bind(login, data => signIn(data.token.trim()));
+if (document.body.dataset.demo === "true") {
+  byId("demo-login").hidden = false;
+  byId("token-login").open = false;
+  const demoButton = byId("demo-button");
+  demoButton.addEventListener("click", () => run(demoButton, async () => {
+    const access = await request("/api/demo-sign-in", "POST");
+    await signIn(access.token);
+  }));
+}
+byId("signout").addEventListener("click", () => location.reload());
+byId("cancel-edit").addEventListener("click", stopEditing);
+for (const filter of [siteFilter, statusFilter, assetSiteFilter]) {
+  filter.addEventListener("change", () => refresh().catch(error => {
+    byId("message").textContent = error.message;
+  }));
+}
+bind(byId("site-form"), async data => {
+  await request("/api/sites", "POST", data);
+  byId("site-form").reset();
+  byId("site-editor").open = false;
+  await refresh();
+  return "Site added.";
+});
+bind(assetForm, async data => {
+  await request(editing ? "/api/assets/" + encodeURIComponent(editing) : "/api/assets",
+    editing ? "PATCH" : "POST", data);
+  stopEditing();
+  await refresh();
+  return "Asset saved.";
+});
+bind(ticketForm, async data => {
+  await request("/api/tickets", "POST", data);
+  ticketForm.reset();
+  byId("ticket-editor").open = false;
+  await refresh();
+  return "Ticket logged.";
+});
 </script>
 </body>
 </html>
