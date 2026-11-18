@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Field Maintenance Desk</title>
+<style>
+* { box-sizing: border-box; }
+body { margin: 0; font: 16px/1.5 system-ui, sans-serif; background: #eff3ef; color: #192721; }
+header { background: #18392d; color: white; padding: 32px max(24px, calc((100vw - 1040px)/2)); }
+h1, h2, p { margin: 0 0 12px; }
+header p { color: #c8ded3; margin: 0; }
+main { margin: 28px auto; padding: 0 20px; max-width: 1080px; display: grid; grid-template-columns: 1fr 1.5fr; gap: 20px; align-items: start; }
+section { padding: 24px; background: white; border: 1px solid #d5dfd8; border-radius: 14px; }
+label { display: block; margin: 14px 0; font-weight: 600; }
+select, textarea, button { font: inherit; border-radius: 8px; }
+select, textarea { display: block; margin-top: 6px; padding: 9px; width: 100%; border: 1px solid #a0b4a7; }
+textarea { resize: vertical; }
+button { background: #225641; color: white; border: 0; padding: 9px 14px; cursor: pointer; }
+button:disabled { opacity: .65; cursor: wait; }
+:focus-visible { outline: 3px solid #bf7600; outline-offset: 2px; }
+article { border-top: 1px solid #d5dfd8; padding: 14px 0; overflow-wrap: anywhere; }
+small { color: #405a4b; }
+#message { min-height: 1.5em; margin-top: 12px; }
+@media (max-width: 720px) { main { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>Field Maintenance Desk</h1>
+  <p>Log equipment issues and track follow-up. Demo assets only.</p>
+</header>
+<main>
+  <section>
+    <h2>Log an issue</h2>
+    <form id="issue">
+      <label>Asset
+        <select name="asset" required>
+          <option value="">Select an asset</option>
+          <option>DRILL-01</option><option>PUMP-02</option><option>GEN-03</option>
+        </select>
+      </label>
+      <label>Category
+        <select name="category" required>
+          <option value="">Select a category</option>
+          <option>Mechanical</option><option>Electrical</option><option>Hydraulic</option><option>Other</option>
+        </select>
+      </label>
+      <label>What did you observe?
+        <textarea name="description" rows="4" required minlength="10" maxlength="500"></textarea>
+      </label>
+      <button type="submit">Log issue</button>
+    </form>
+    <p id="message" role="status"></p>
+  </section>
+  <section>
+    <h2>Maintenance queue</h2>
+    <p id="count"></p>
+    <div id="queue"></div>
+  </section>
+</main>
+<script>
+const form = document.querySelector("#issue");
+const message = document.querySelector("#message");
+const queue = document.querySelector("#queue");
+
+async function request(path, options) {
+  const response = await fetch(path, options);
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error);
+  return data;
+}
+
+function addText(parent, tag, value) {
+  const element = document.createElement(tag);
+  element.textContent = value;
+  parent.append(element);
+  return element;
+}
+
+async function refresh() {
+  const tickets = await request("/api/tickets");
+  const open = tickets.filter(ticket => ticket.status === "Open").length;
+  document.querySelector("#count").textContent =
+    tickets.length ? `${open} open · ${tickets.length - open} resolved` : "No issues logged yet.";
+  queue.replaceChildren();
+  for (const ticket of tickets) {
+    const card = document.createElement("article");
+    addText(card, "small", `#${ticket.id} · ${ticket.asset} · ${ticket.category} · ${ticket.status}`);
+    addText(card, "p", ticket.description);
+    if (ticket.status === "Open") {
+      const button = addText(card, "button", "Mark resolved");
+      button.setAttribute("aria-label", `Mark ticket ${ticket.id} resolved`);
+      button.addEventListener("click", async () => {
+        button.disabled = true;
+        try {
+          await request(`/api/tickets/${ticket.id}`, {method: "PATCH"});
+          message.textContent = `Ticket #${ticket.id} resolved.`;
+          await refresh();
+        } catch (error) {
+          button.disabled = false;
+          message.textContent = error.message;
+        }
+      });
+    }
+    queue.append(card);
+  }
+}
+
+form.addEventListener("submit", async event => {
+  event.preventDefault();
+  const button = form.querySelector("button");
+  button.disabled = true;
+  try {
+    const ticket = await request("/api/tickets", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify(Object.fromEntries(new FormData(form)))
+    });
+    form.reset();
+    message.textContent = `Ticket #${ticket.id} logged.`;
+    await refresh();
+  } catch (error) {
+    message.textContent = error.message;
+  } finally {
+    button.disabled = false;
+  }
+});
+
+refresh().catch(error => { message.textContent = error.message; });
+</script>
+</body>
+</html>
